@@ -13,6 +13,7 @@ import (
 	"github.com/concourse/concourse"
 	"github.com/concourse/concourse/atc/worker/gclient"
 	concourseCmd "github.com/concourse/concourse/cmd"
+	"github.com/concourse/concourse/metrics"
 	"github.com/concourse/concourse/worker"
 	"github.com/concourse/flag"
 	"github.com/tedsuo/ifrit"
@@ -47,6 +48,10 @@ type WorkerCommand struct {
 	RebalanceInterval time.Duration `long:"rebalance-interval" description:"Duration after which the registration should be swapped to another random SSH gateway."`
 
 	ConnectionDrainTimeout time.Duration `long:"connection-drain-timeout" default:"1h" description:"Duration after which a worker should give up draining forwarded connections on shutdown."`
+
+	Metric struct {
+		Prometheus metrics.Prometheus
+	} `group:"metrics"`
 
 	Garden GardenBackend `group:"Garden Configuration" namespace:"garden"`
 

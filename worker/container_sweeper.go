@@ -10,6 +10,7 @@ import (
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagerctx"
 	"github.com/concourse/concourse/atc/worker/gclient"
+	"github.com/concourse/concourse/metrics"
 )
 
 // ContainerSweeper is an ifrit.Runner that periodically reports and
@@ -76,23 +77,30 @@ func (sweeper *ContainerSweeper) sweep(logger lager.Logger) {
 	containerHandles, err := sweeper.tsaClient.ContainersToDestroy(ctx)
 	if err != nil {
 		logger.Error("failed-to-get-containers-to-destroy", err)
-	} else {
-		var wg sync.WaitGroup
-		maxInFlight := make(chan int, sweeper.maxInFlight)
-
-		for _, handle := range containerHandles {
-			maxInFlight <- 1
-			wg.Add(1)
-
-			go func(handle string) {
-				err := sweeper.gardenClient.Destroy(handle)
-				if err != nil {
-					logger.WithData(lager.Data{"handle": handle}).Error("failed-to-destroy-container", err)
-				}
-				<-maxInFlight
-				wg.Done()
-			}(handle)
-		}
-		wg.Wait()
+		return
 	}
+
+	var wg sync.WaitGroup
+	maxInFlight := make(chan int, sweeper.maxInFlight)
+
+	metrics.Counter("containers_to_sweep").Add(
+		context.Background(),
+		int64(len(containerHandles)),
+		nil,
+	)
+
+	for _, handle := range containerHandles {
+		maxInFlight <- 1
+		wg.Add(1)
+
+		go func(handle string) {
+			err := sweeper.gardenClient.Destroy(handle)
+			if err != nil {
+				logger.WithData(lager.Data{"handle": handle}).Error("failed-to-destroy-container", err)
+			}
+			<-maxInFlight
+			wg.Done()
+		}(handle)
+	}
+	wg.Wait()
 }
