@@ -44,6 +44,10 @@ type targetDetailsYAML struct {
 }
 
 func flyrcPath() string {
+	config_file := os.Getenv("FLY_CONFIG_FILE")
+	if config_file != "" {
+		return config_file
+	}
 	return filepath.Join(userHomeDir(), ".flyrc")
 }
 
